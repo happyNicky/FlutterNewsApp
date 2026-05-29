@@ -22,6 +22,35 @@ public class RailwayDataSourceConfig {
     @Bean
     @Primary
     public DataSource dataSource() {
+        // 1. Check if standard SPRING_DATASOURCE_URL is configured
+        String springJdbcUrl = env("SPRING_DATASOURCE_URL");
+        if (!isBlank(springJdbcUrl)) {
+            log.info("Connecting to database using SPRING_DATASOURCE_URL");
+            HikariDataSource dataSource = new HikariDataSource();
+            dataSource.setJdbcUrl(springJdbcUrl);
+            dataSource.setUsername(env("SPRING_DATASOURCE_USERNAME"));
+            dataSource.setPassword(env("SPRING_DATASOURCE_PASSWORD"));
+            dataSource.setConnectionTimeout(30_000);
+            return dataSource;
+        }
+
+        // 2. Check for Render / Heroku / generic PostgreSQL: DATABASE_URL
+        String databaseUrl = env("DATABASE_URL");
+        DbUrlParts parsedPg = parseDbUrl(databaseUrl);
+        if (parsedPg != null && "postgresql".equals(parsedPg.driver())) {
+            String jdbcUrl = "jdbc:postgresql://" + parsedPg.host() + ":" + parsedPg.port() + "/" + parsedPg.database();
+            log.info("Connecting to PostgreSQL at {}:{}/{}", parsedPg.host(), parsedPg.port(), parsedPg.database());
+            
+            HikariDataSource dataSource = new HikariDataSource();
+            dataSource.setDriverClassName("org.postgresql.Driver");
+            dataSource.setJdbcUrl(jdbcUrl);
+            dataSource.setUsername(parsedPg.username());
+            dataSource.setPassword(parsedPg.password() != null ? parsedPg.password() : "");
+            dataSource.setConnectionTimeout(30_000);
+            return dataSource;
+        }
+
+        // 3. Check for Railway / generic MySQL: MYSQLHOST or MYSQL_URL
         String host = env("MYSQLHOST");
         String port = env("MYSQLPORT");
         String database = env("MYSQLDATABASE");
@@ -29,19 +58,31 @@ public class RailwayDataSourceConfig {
         String password = env("MYSQLPASSWORD");
 
         if (isBlank(host)) {
-            MysqlUrlParts parsed = parseMysqlUrl(env("MYSQL_URL"));
-            if (parsed != null) {
-                host = parsed.host();
-                port = parsed.port();
-                database = parsed.database();
-                username = parsed.username();
-                password = parsed.password();
+            DbUrlParts parsedMysql = parseDbUrl(env("MYSQL_URL"));
+            if (parsedMysql != null && "mysql".equals(parsedMysql.driver())) {
+                host = parsedMysql.host();
+                port = parsedMysql.port();
+                database = parsedMysql.database();
+                username = parsedMysql.username();
+                password = parsedMysql.password();
+            }
+        }
+
+        if (isBlank(host)) {
+            // Also check if DATABASE_URL was parsed as mysql
+            if (parsedPg != null && "mysql".equals(parsedPg.driver())) {
+                host = parsedPg.host();
+                port = parsedPg.port();
+                database = parsedPg.database();
+                username = parsedPg.username();
+                password = parsedPg.password();
             }
         }
 
         if (isBlank(host)) {
             throw new IllegalStateException(
-                    "Database not configured. On Railway: add a MySQL service and link it to this backend service.");
+                    "Database not configured in production environment. " +
+                    "Set DATABASE_URL (PostgreSQL/MySQL), MYSQL_URL/MYSQLHOST (MySQL), or SPRING_DATASOURCE_URL.");
         }
 
         if (isBlank(port)) {
@@ -57,6 +98,7 @@ public class RailwayDataSourceConfig {
         log.info("Connecting to MySQL at {}:{}/{}", host, port, database);
 
         HikariDataSource dataSource = new HikariDataSource();
+        dataSource.setDriverClassName("com.mysql.cj.jdbc.Driver");
         dataSource.setJdbcUrl(jdbcUrl);
         dataSource.setUsername(username);
         dataSource.setPassword(password != null ? password : "");
@@ -73,18 +115,42 @@ public class RailwayDataSourceConfig {
         return value == null || value.isBlank();
     }
 
-    private static MysqlUrlParts parseMysqlUrl(String mysqlUrl) {
-        if (isBlank(mysqlUrl) || !mysqlUrl.startsWith("mysql://")) {
+    private static DbUrlParts parseDbUrl(String url) {
+        if (isBlank(url)) {
+            return null;
+        }
+
+        String scheme;
+        String defaultPort;
+        String driver;
+        String replacedUrl;
+
+        if (url.startsWith("mysql://")) {
+            scheme = "mysql://";
+            driver = "mysql";
+            defaultPort = "3306";
+            replacedUrl = url.replace("mysql://", "http://");
+        } else if (url.startsWith("postgres://")) {
+            scheme = "postgres://";
+            driver = "postgresql";
+            defaultPort = "5432";
+            replacedUrl = url.replace("postgres://", "http://");
+        } else if (url.startsWith("postgresql://")) {
+            scheme = "postgresql://";
+            driver = "postgresql";
+            defaultPort = "5432";
+            replacedUrl = url.replace("postgresql://", "http://");
+        } else {
             return null;
         }
 
         try {
-            URI uri = URI.create(mysqlUrl.replace("mysql://", "http://"));
+            URI uri = URI.create(replacedUrl);
             String host = uri.getHost();
-            int port = uri.getPort() > 0 ? uri.getPort() : 3306;
+            int port = uri.getPort() > 0 ? uri.getPort() : Integer.parseInt(defaultPort);
             String database = uri.getPath() != null && uri.getPath().length() > 1
                     ? uri.getPath().substring(1)
-                    : "railway";
+                    : "";
 
             String userInfo = uri.getUserInfo();
             String username = null;
@@ -99,9 +165,9 @@ public class RailwayDataSourceConfig {
                 }
             }
 
-            return new MysqlUrlParts(host, String.valueOf(port), database, username, password);
-        } catch (IllegalArgumentException ex) {
-            log.warn("Could not parse MYSQL_URL: {}", ex.getMessage());
+            return new DbUrlParts(driver, host, String.valueOf(port), database, username, password);
+        } catch (Exception ex) {
+            log.warn("Could not parse database URL: {}", ex.getMessage());
             return null;
         }
     }
@@ -110,7 +176,8 @@ public class RailwayDataSourceConfig {
         return URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 
-    private record MysqlUrlParts(
+    private record DbUrlParts(
+            String driver,
             String host,
             String port,
             String database,
