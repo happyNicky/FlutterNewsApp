@@ -31,7 +31,11 @@ public class BookmarkService {
     @Transactional(readOnly = true)
     public List<BookmarkedArticle> getBookmarks(UserPrincipal userPrincipal) {
         User user = requireUser(userPrincipal);
-        return new ArrayList<>(user.getBookmarks() != null ? user.getBookmarks() : List.of());
+        Set<BookmarkedArticle> bookmarks = user.getBookmarks();
+        if (bookmarks == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(bookmarks);
     }
 
     @Transactional
@@ -44,6 +48,10 @@ public class BookmarkService {
         }
 
         User user = requireUser(userPrincipal);
+
+        if (user.getBookmarks() == null) {
+            user.setBookmarks(new HashSet<>());
+        }
 
         BookmarkedArticle article = articleRepository.findById(request.getId().trim())
                 .orElseGet(() -> createArticle(request));

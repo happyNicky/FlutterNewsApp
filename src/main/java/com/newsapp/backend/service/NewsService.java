@@ -193,7 +193,7 @@ public class NewsService {
         try {
             candidatePool.addAll(getTrending(page, pageSize, excludeIds));
         } catch (Exception e) {
-            log.warn("Failed to fetch trending candidates", e);
+            log.error("Failed to fetch trending candidates - API may be down or key invalid", e);
         }
 
         // Candidate Set B: Location-based News
@@ -226,7 +226,7 @@ public class NewsService {
                     candidatePool.addAll(localCandidates);
                 }
             } catch (Exception e) {
-                log.warn("Failed to fetch location candidates", e);
+                log.error("Failed to fetch location candidates - API may be down or key invalid", e);
             }
         }
 
@@ -247,7 +247,7 @@ public class NewsService {
                     candidatePool.addAll(categoryNews);
                 }
             } catch (Exception e) {
-                log.warn("Failed to fetch category candidates", e);
+                log.error("Failed to fetch category candidates - API may be down or key invalid", e);
             }
         } else {
             // New user without bookmarks - fetch some curated topics to add variety
@@ -265,7 +265,7 @@ public class NewsService {
                     candidatePool.addAll(starterNews);
                 }
             } catch (Exception e) {
-                log.warn("Failed to fetch starter candidates", e);
+                log.error("Failed to fetch starter candidates - API may be down or key invalid", e);
             }
         }
 
