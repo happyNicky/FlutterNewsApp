@@ -27,6 +27,16 @@ public class NewsController {
         return ResponseEntity.ok(newsService.getTrending(page, pageSize, excludeIds));
     }
 
+    @GetMapping("/getter")
+    public ResponseEntity<List<Map<String, Object>>> getter(
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "15") int pageSize,
+            @RequestParam(required = false) List<String> excludeIds) {
+        UserPrincipal userPrincipal = SecurityUtils.getCurrentUser();
+        return ResponseEntity.ok(newsService.getRecommended(userPrincipal, latitude, longitude, page, pageSize, excludeIds));
+    }
     @GetMapping("/recommended")
     public ResponseEntity<List<Map<String, Object>>> getRecommended(
             @RequestParam(required = false) Double latitude,
