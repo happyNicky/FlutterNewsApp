@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -151,6 +152,7 @@ public class NewsService {
         return false;
     }
 
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getRecommended(UserPrincipal userPrincipal, Double latitude, Double longitude, int page, int pageSize, List<String> excludeIds) {
         List<Map<String, Object>> candidatePool = new ArrayList<>();
         Set<String> bookmarkedCategories = new HashSet<>();
@@ -161,7 +163,7 @@ public class NewsService {
 
         // 1. Extract User Profile (Activity)
         if (userPrincipal != null) {
-            Optional<User> userOpt = userRepository.findByEmail(userPrincipal.getEmail());
+            Optional<User> userOpt = userRepository.findWithBookmarksByEmail(userPrincipal.getEmail());
             if (userOpt.isPresent()) {
                 User user = userOpt.get();
                 Set<BookmarkedArticle> bookmarks = user.getBookmarks();

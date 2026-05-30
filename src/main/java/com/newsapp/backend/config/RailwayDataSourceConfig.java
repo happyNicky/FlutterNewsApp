@@ -38,7 +38,8 @@ public class RailwayDataSourceConfig {
         String databaseUrl = env("DATABASE_URL");
         DbUrlParts parsedPg = parseDbUrl(databaseUrl);
         if (parsedPg != null && "postgresql".equals(parsedPg.driver())) {
-            String jdbcUrl = "jdbc:postgresql://" + parsedPg.host() + ":" + parsedPg.port() + "/" + parsedPg.database();
+            String jdbcUrl = "jdbc:postgresql://" + parsedPg.host() + ":" + parsedPg.port() + "/" + parsedPg.database()
+                    + "?sslmode=require";
             log.info("Connecting to PostgreSQL at {}:{}/{}", parsedPg.host(), parsedPg.port(), parsedPg.database());
             
             HikariDataSource dataSource = new HikariDataSource();

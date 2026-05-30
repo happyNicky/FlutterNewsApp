@@ -1,12 +1,12 @@
 package com.newsapp.backend.controller;
 
+import com.newsapp.backend.security.SecurityUtils;
+import com.newsapp.backend.security.UserPrincipal;
 import com.newsapp.backend.service.NewsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.newsapp.backend.security.UserPrincipal;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import lombok.Data;
 
 import java.util.List;
@@ -29,19 +29,19 @@ public class NewsController {
 
     @GetMapping("/recommended")
     public ResponseEntity<List<Map<String, Object>>> getRecommended(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "15") int pageSize,
             @RequestParam(required = false) List<String> excludeIds) {
+        UserPrincipal userPrincipal = SecurityUtils.getCurrentUser();
         return ResponseEntity.ok(newsService.getRecommended(userPrincipal, latitude, longitude, page, pageSize, excludeIds));
     }
 
     @PostMapping("/recommended/feed")
     public ResponseEntity<List<Map<String, Object>>> getRecommendedFeed(
-            @AuthenticationPrincipal UserPrincipal userPrincipal,
             @RequestBody(required = false) RecommendedFeedRequest request) {
+        UserPrincipal userPrincipal = SecurityUtils.getCurrentUser();
         RecommendedFeedRequest safe = request == null ? new RecommendedFeedRequest() : request;
         int page = safe.getPage() == null ? 1 : safe.getPage();
         int pageSize = safe.getPageSize() == null ? 15 : safe.getPageSize();
