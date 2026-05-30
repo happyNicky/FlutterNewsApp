@@ -31,7 +31,7 @@ public class BookmarkService {
     @Transactional(readOnly = true)
     public List<BookmarkedArticle> getBookmarks(UserPrincipal userPrincipal) {
         User user = requireUser(userPrincipal);
-        return new ArrayList<>(user.getBookmarks());
+        return new ArrayList<>(user.getBookmarks() != null ? user.getBookmarks() : List.of());
     }
 
     @Transactional

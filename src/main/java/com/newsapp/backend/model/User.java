@@ -40,7 +40,7 @@ public class User {
     @JoinTable(
             name = "user_bookmarks",
             joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "article_id")
+            inverseJoinColumns = @JoinColumn(name = "article_id", referencedColumnName = "id")
     )
     @Builder.Default
     private Set<BookmarkedArticle> bookmarks = new HashSet<>();

@@ -22,8 +22,8 @@ import java.util.Set;
 public class BookmarkedArticle {
     @Id
     @EqualsAndHashCode.Include
-    @Column(length = 2048)
-    private String id; // We will use the URL hash or original ID as the primary key
+    @Column(length = 512)
+    private String id; // Guardian article URL/id (max ~200 chars)
 
     @Column(nullable = false)
     private String title;
